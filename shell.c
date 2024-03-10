@@ -7,10 +7,11 @@ void read_input(char line[], int size);
 void shell();
 char** parse_input(char input[],char* letter);
 void setup_environment();
-void execute_shell_bultin(char* type, char* parameter);
+void execute_shell_bultin(char* type, char* parameter, char** comm);
 void execute_command(char** args);
 void assignForVariable(char equ[]);
-void evaluate_expression(char* param);
+char** evaluate_expression(char** command);
+void concat (char** comm);
 
 int ind=0;
 char vars[200][100] ;
@@ -38,38 +39,19 @@ void shell(){
     do{
         read_input(line, sizeof(line));
         command = parse_input(line," ");
+        
         int builtin = (strncmp(*command,"cd",2)==0 || strncmp(*command,"echo",4)==0 || strncmp(*command,"export",6)==0) ? 1 : 0;
-        
-        // printf("%s",(*(command+1)));
-        // printf("%c",*(*(command+1)+i));
-
-        
-            // *(command+1) = tokensOfParam;
-        
-
-
-        // for (int i=0;(*(command+1)!=NULL)&&i<strlen(*(command+1));i++){
-        //     // printf("[%d]\n",i);
-        //     if (*(*(command+1)+i)=='$'){
-        //         for (int j=0;j<ind;j++){
-        //             // printf("%c\n",((command+1)+i+1));
-        //             // ((command+1)+i) = '';
-        //             if(strcmp(vars[j][0],((command+1)+i+1))==0){
-        //             printf ("Entered");
-        //             //     ((command+1)+i+1) = vars[j][1];
-        //             //     break;
-        //             // }else{
-        //             //     ((command+1)+i+1) = "";
-        //             }
-        //         }
-        //     }
-        // }
-
-        // printf("%s",(*(command+1)));
+        int evaluated=0;
+        if((*(command+1)!=NULL && strstr(*(command+1), "$") != NULL)){
+            evaluated=1;
+            if (*(*(command+1)+strlen(*(command+1))-1) == '"') 
+                *(*(command+1)+strlen(*(command+1))-1) = NULL;
+            *(command+1)=evaluate_expression(command);
+        } 
         
         switch(builtin){
             case 1:
-                execute_shell_bultin(*command,*(command+1));
+                execute_shell_bultin(*command,*(command+1),command);
                 break;
             case 0:
                 execute_command(command);
@@ -79,41 +61,43 @@ void shell(){
     exit(0);
 }
 
-int evaluate_expression(char** command){
-    int evaluated = 0;
-    if((*(command+1)!=NULL && strstr(*(command+1), "$") != NULL)){
-        char* value = " ";
-        char** tokensOfParam = parse_input(*(command+1),"$");
-        for (int i=0; tokensOfParam[i]!=NULL ;i++){
-            // printf("[%d] %s\n",i,tokensOfParam[i]);
-            for (int j=0;j<ind;j++){
-                // printf("[%d] %s",i,tokensOfParam[i]);
-                // printf(" %s\n",vars[j][0]);
-                if(strcmp(vars[j],tokensOfParam[i])==0){
-                    // printf ("Yes and == %s\n",vars[j+1]);
-                    // printf("[%d][0] = %s\n[%d][1] = %s\n",j+1,vars[j][0],j+1,vars[j][1]);
-                    value=vars[j+1];
-                    tokensOfParam[i]=value;
-                    break;
-                }
-                // tokensOfParam[i]=value;
+char**  evaluate_expression(char** command){
+    char* value = " ";
+    char** tokensOfParam = parse_input(*(command+1),"$");
+    for (int i=0; tokensOfParam[i]!=NULL ;i++){
+        for (int j=0;j<ind;j++){
+            if(strcmp(vars[j],tokensOfParam[i])==0){
+                value=vars[j+1];
+                tokensOfParam[i]=value;
+                break;
             }
-            printf("TOP [%d] %s",i,tokensOfParam[i]);
         }
+        // printf("TOP [%d] %s\n",i,tokensOfParam[i]);
     }
+    return value;
 }
 
-void execute_shell_bultin(char* type, char* parameter){
+void execute_shell_bultin(char* type, char* parameter, char** comm){
     switch(*(type+1)){ // Checking the second character in the command : d for cd, c for echo and x for expert. 
         case 'd':
             chdir(parameter);
             break;
         case 'c':
             printf(parameter);
+            printf("\n");
             break;
         case 'x':
+            concat (comm);
             assignForVariable(parameter);
             break;
+    }
+}
+
+void concat (char** comm){
+    int i=2;
+    while (*(comm+i)!=NULL){
+        *(comm+1) = strcat (*(comm+1),*(comm+i));
+        i++;
     }
 }
 
@@ -121,7 +105,9 @@ void assignForVariable(char equ[]) {
     // if (strlen(equ)>0 && equ[strlen(equ)-1]=='\n') equ[strlen(equ)-1]='\0';
     char** tokens = parse_input(equ,"=");
     strcpy (vars[ind++],*tokens);
-    strcpy (vars[ind++],*(tokens+1)); 
+    strcpy (vars[ind],*(tokens+1)); 
+    // printf (*(tokens+1));
+    ind ++;
     // printf("[%d][Name] = %s\n[%d][Value] = %s\n",ind-2,vars[ind-2],ind-1,vars[ind-1]);
     // printf("[%d][Name] = %s\n[%d][Value] = %s\n",0,vars[0],1,vars[1]);
 
@@ -152,7 +138,7 @@ void read_input(char line[], int size){
 }
 
 char** parse_input(char input[],char* letter) {
-    char** tokens = (char*)malloc(sizeof(char));
+    char** tokens = (char*)malloc(100*sizeof(char));
     if (tokens == NULL) {
         printf("Memory allocation failed\n");
         exit(1);
