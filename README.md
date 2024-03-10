@@ -1,1 +1,1 @@
-Simple C Based Linux Shell, Assigned for Operating Systems at CSED Alexandria Engineering.
+Simple C Based Linux Shell, Assigned for Operating Systems Subject at CSED Alexandria Engineering.
